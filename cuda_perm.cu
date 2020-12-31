@@ -8,13 +8,18 @@
 #define ll long long
 #define MAX_THREAD_PER_BLOCK 1024
 #define MAX_NB_CITIES 50
-#define DEBUG 0
+#define DEBUG
 
-__device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
+__device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact, int tasks_per_thread, ll limit_blocks_1d) {
 	// Test for valid idx
-	if (idx < nb_perm) {
-		// Resulting perm vector
-		int perm[MAX_NB_CITIES + 1];
+	int cont_tasks = 0, cost = 0;
+	int min_cost = INT_MAX;
+
+	// Resulting perm vector
+	int perm[MAX_NB_CITIES + 1];
+
+	// Get and calculate permutations for the current thread
+	while (idx < nb_perm && cont_tasks != tasks_per_thread) {
 
 		// compute factorial code
 		for (int k = 0; k < n; ++k) {
@@ -35,20 +40,23 @@ __device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) 
 		perm[n] = perm[0];
 
 		// Perm cost
-		int cost = 0;
+		cost = 0;
 
 		// Calc perm cost
 		for (int i = 0; i < n; i++) {
 			cost += dist[perm[i] * n + perm[i + 1]];
 		}
 
-		return cost;
-	} else {
-		return INT_MAX;
+		idx = idx + limit_blocks_1d;
+		cont_tasks++;
+		
+		// maintain min cost
+		cost = cost < min_cost ? cost : min_cost;
 	}
+	return cost;
 }
 
-__global__ void perm_cuda(int n, ll nb_perm, int * dist, ll * fact, int * mcost) {
+__global__ void perm_cuda(int n, ll nb_perm, int * dist, ll * fact, int * mcost, int tasks_per_thread, ll limit_blocks_1d) {
 	// Thread index
 	int tidx = threadIdx.x;
 
@@ -70,8 +78,6 @@ __global__ void perm_cuda(int n, ll nb_perm, int * dist, ll * fact, int * mcost)
 		}
 	}
 
-	__syncthreads();
-
 	// Shared factorial
 	__shared__ ll s_fact[MAX_NB_CITIES];
 
@@ -85,7 +91,7 @@ __global__ void perm_cuda(int n, ll nb_perm, int * dist, ll * fact, int * mcost)
 	__shared__ int s_mcost[MAX_THREAD_PER_BLOCK];
 
 	// Minimal local cost
-	s_mcost[tidx] = calc_perm_cost(idx, n, nb_perm, s_dist, s_fact);
+	s_mcost[tidx] = calc_perm_cost(idx, n, nb_perm, s_dist, s_fact, tasks_per_thread, limit_blocks_1d);
 	__syncthreads();
 
 	// Reduce local cost to find global
@@ -177,7 +183,7 @@ int * putDMatrixInDevice(int n) {
 	free(x);
 	free(y);
 
-	if (DEBUG) {
+	#ifdef DEBUG
 		// Print dist
 		printf("dist\n");
 		for (int i = 0; i < n; i++) {
@@ -186,7 +192,7 @@ int * putDMatrixInDevice(int n) {
 			}
 			printf("\n");
 		}
-	}
+	#endif
 
 	// Dist matrix on device
 	int * d_dist;
@@ -217,14 +223,14 @@ ll * putFactInDevice(int n) {
 		h_fact[i] = i * h_fact[i - 1];
 	}
 
-	if (DEBUG) {
+	#ifdef DEBUG
 		// Print fact
 		printf("fact ");
 		for (int i = 0; i < n; i++) {
 			printf("%lld ", h_fact[i]);
 		}
 		printf("\n");
-	}
+	#endif
 
 	// Fact vector on device
 	ll * d_fact;
@@ -244,11 +250,8 @@ ll factorial(int n) {
 }
 
 int run_tsp() {
-	int nb_cities;
+	int nb_cities, tasks_per_thread = 1;
 	scanf("%d", &nb_cities);
-	if (DEBUG) {
-		printf("nb_cities  %d\n", nb_cities);
-	}
 
 	// Dist matrix
 	int * d_dist = putDMatrixInDevice(nb_cities);
@@ -258,26 +261,46 @@ int run_tsp() {
 
 	// Number of permutations
 	ll nb_perm = factorial(nb_cities);
-	if (DEBUG) {
-		printf("nb_perm    %lld\n", nb_perm);
+
+	#ifdef DEBUG
+		printf("nb_cities\t\t%d\n", nb_cities);
+		printf("nb_perm\t\t\t%lld\n", nb_perm);
+	#endif
+
+	cudaSetDevice(0);
+	cudaDeviceProp prop;
+	cudaGetDeviceProperties(&prop, 0);
+	
+	// Calculate number of tasks per thread
+	ll limit_blocks_1d = prop.maxGridSize[0];
+	if(nb_perm / MAX_THREAD_PER_BLOCK > limit_blocks_1d) {
+		tasks_per_thread = ceil((nb_perm / MAX_THREAD_PER_BLOCK) / limit_blocks_1d);
 	}
 
-	// nb_blocks, nb_threads
-	int nb_blocks  = (nb_perm + MAX_THREAD_PER_BLOCK - 1)/MAX_THREAD_PER_BLOCK;
-	int nb_threads = (nb_perm > MAX_THREAD_PER_BLOCK ? MAX_THREAD_PER_BLOCK : nb_perm);
-	if (DEBUG) {
-		printf("nb_blocks  %d\n", nb_blocks);
-		printf("nb_threads %d\n", nb_threads);
+	// Set number of tasks/thread and # blocks
+	ll nb_blocks, nb_threads;
+	if(nb_perm > limit_blocks_1d) {
+		nb_blocks = limit_blocks_1d;
+		nb_threads = MAX_THREAD_PER_BLOCK;
+	} else {
+		nb_blocks  = (nb_perm + MAX_THREAD_PER_BLOCK - 1)/MAX_THREAD_PER_BLOCK;
+		nb_threads = (nb_perm > MAX_THREAD_PER_BLOCK ? MAX_THREAD_PER_BLOCK : nb_perm);
 	}
+
+	#ifdef DEBUG
+		printf("nb_blocks\t\t%lld\n", nb_blocks);
+		printf("nb_threads\t\t%lld\n", nb_threads);
+		printf("tasks/thread\t\t%lld\n", tasks_per_thread);
+	#endif
 
 	// Mim cost from blocks
-	int * h_mcost = (int *)malloc(nb_blocks*sizeof(int));
+	int * h_mcost = (int *) malloc(nb_blocks*sizeof(int));
 	int * d_mcost;
 	cudaMalloc(&d_mcost, nb_blocks*sizeof(int));
 
 	// Call gpu
 	clock_t start = clock();
-	perm_cuda<<<nb_blocks, nb_threads>>>(nb_cities, nb_perm, d_dist, d_fact, d_mcost);
+	perm_cuda<<<nb_blocks, nb_threads>>>(nb_cities, nb_perm, d_dist, d_fact, d_mcost, tasks_per_thread, limit_blocks_1d);
 	cudaDeviceSynchronize();
 	clock_t end = clock();
 
@@ -294,23 +317,27 @@ int run_tsp() {
 		printf("CUDA Error: %s\n",cudaGetErrorString(err));
 	}
 
-	// Host global mim
+	// Host global min
 	int global_mcost = INT_MAX;
 
-	// Find global mim
+	// Find global min
 	for (int i = 0; i < nb_blocks; i++) {
 		if (h_mcost[i] < global_mcost) {
 			global_mcost = h_mcost[i];
 		}
 	}
 
+	cudaFree(d_fact);
+	cudaFree(d_dist);
+	cudaFree(d_mcost);
+
 	return global_mcost;
 }
 
 int main() {
-	if (DEBUG) {
+	#ifdef DEBUG
 		printDeviceProps();
-	}
+	#endif
 
 	int num_instances;
 	
