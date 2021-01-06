@@ -10,8 +10,10 @@
 #include <math.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <pthread.h>
 
 #define ll long long
+#define THREAD_NUM 8
 #define MAX_NB_CITIES 50
 
 int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
@@ -52,6 +54,40 @@ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
 	}
 }
 
+void * calc_perm_cost_iter(void * args) {
+	int  ** iargs = (int **)args;
+	ll   ** largs = (ll **)args;
+	void ** vargs = (void **)args;
+
+	// ll idx, int n, ll nb_perm, int * dist, ll * fact
+	int i         = *iargs[0];
+	int nb_cities = *iargs[1];
+	ll  nb_perm   = *largs[2];
+	int * dist    = (int *)(vargs[3]);
+	ll  * fact    =  (ll *)(vargs[4]);
+
+	// printf("From %d %d %lld %p %p\n", i, nb_cities, nb_perm, dist, fact);
+	int perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
+
+	int start =     i * perm_per_thread;
+	int end   = start + perm_per_thread;
+
+	int min_mcost = INT_MAX;
+	int cost;
+
+	for (int j = start; j < end; j++) {
+		if (j < nb_perm) {
+			cost = calc_perm_cost(j, nb_cities, nb_perm, dist, fact);
+
+			if (cost < min_mcost) {
+				min_mcost = cost;
+			}
+		}
+	}
+
+	*iargs[0] = min_mcost;
+}
+
 ll factorial(int n) {
 	return (n > 1 ? n*factorial(n-1) : 1);
 }
@@ -60,7 +96,7 @@ int run_tsp() {
 	int nb_cities;
 	scanf("%d", &nb_cities);
 
-	int nb_perm = factorial(nb_cities);
+	ll nb_perm = factorial(nb_cities);
 
 	// X coords
 	int * x = (int *)malloc(nb_cities*sizeof(int));
@@ -116,6 +152,17 @@ int run_tsp() {
 	
 	int min_mcost = INT_MAX;
 
+
+	pthread_t * threads = (pthread_t *)malloc(sizeof(pthread_t)*THREAD_NUM);
+	if (!threads) {
+		exit(1);
+	}
+
+	void ***vargs = (void ***)malloc(sizeof(void **)*THREAD_NUM);
+	if (!vargs) {
+		exit(1);
+	}
+
 	// Time measurement variables
 	struct timeval start, end;
 	struct rusage r1, r2;
@@ -123,21 +170,55 @@ int run_tsp() {
 	// Start
 	gettimeofday(&start, 0);
 	getrusage(RUSAGE_SELF, &r1);
-	
-	for (int i = 0; i < nb_perm; i++) {
-		int cost = calc_perm_cost(i, nb_cities, nb_perm, dist, fact);
+
+	// Call threads
+	for (int i = 0; i < THREAD_NUM; i++) {
+		// Alloc args
+		void **args = (void **)malloc(sizeof(void *) * 5);
+		if (!args) {
+			exit(0);
+		}
+		vargs[i] = args;
+
+		// Alloc first arg
+		args[0] = (void *)malloc(sizeof(int));
+		if (!args[0]) {
+			exit(0);
+		}
+
+		// Build args
+		*((int *)args[0]) = i;
+		args[1] = (void *)(&nb_cities);
+		args[2] = (void *)(&nb_perm);
+		args[3] = (void *)(dist);
+		args[4] = (void *)(fact);
 		
+		// ll idx, int n, ll nb_perm, int * dist, ll * fact
+		pthread_create(&threads[i], NULL, calc_perm_cost_iter, args);
+	}
+
+	// Join thread
+	for (int i = 0; i < THREAD_NUM; i++) {
+		pthread_join(threads[i], NULL);
+
+		int ** iargs = (int **)vargs[i];
+		int cost = *iargs[0];
 		if (cost < min_mcost) {
 			min_mcost = cost;
 		}
+
+		free(vargs[i][0]);
+		free(vargs[i]);
+		// printf("Thread %d terminou\n", i);
 	}
-	
-	free(dist);
-	free(fact);
 
 	// End
 	gettimeofday(&end, 0);
 	getrusage(RUSAGE_SELF, &r2);
+
+	free(dist);
+	free(fact);
+	free(vargs);
 
 	// Time
 	printf("\nElapsed time:%f sec\tUser time:%f sec\tSystem time:%f sec\n",
