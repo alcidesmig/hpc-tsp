@@ -11,13 +11,14 @@
 #define DEBUG
 
 __device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact, int tasks_per_thread, ll limit_blocks_1d) {
+	if(idx >= nb_perm) return INT_MAX;
+	
 	// Test for valid idx
 	int cont_tasks = 0, cost = 0;
 	int min_cost = INT_MAX;
 	// Resulting perm vector
 	int perm[MAX_NB_CITIES + 1];
 
-	if(idx >= nb_perm || cont_tasks == tasks_per_thread) return INT_MAX;
 
 	// Get and calculate permutations for the current thread
 	while (idx < nb_perm && cont_tasks != tasks_per_thread) {
