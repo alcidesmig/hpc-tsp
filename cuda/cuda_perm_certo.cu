@@ -8,7 +8,7 @@
 #define ll long long
 #define MAX_THREAD_PER_BLOCK 1024
 #define MAX_NB_CITIES 50
-#define DEBUG 0
+#define DEBUG 1
 
 __device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
 	// Test for valid idx
