@@ -59,7 +59,7 @@ __device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact, 
 	return cost;
 }
 
-__global__ void perm_cuda(int n, ll nb_perm, int * dist, ll * fact, int * mcost, int tasks_per_thread, ll limit_blocks_1d) {
+__global__ void perm_cuda(int n, ll nb_perm, int * dist, ll * fact, int tasks_per_thread, ll limit_blocks_1d, int * mcost) {
 	// Thread index
 	int tidx = threadIdx.x;
 
@@ -253,6 +253,8 @@ ll factorial(int n) {
 }
 
 int run_tsp() {
+	cudaError_t err;
+
 	int nb_cities, tasks_per_thread = 1;
 	scanf("%d", &nb_cities);
 
@@ -275,14 +277,10 @@ int run_tsp() {
 	cudaGetDeviceProperties(&prop, 0);
 	
 	// Calculate number of tasks per thread
+	ll nb_blocks, nb_threads;
 	ll limit_blocks_1d = prop.maxGridSize[0];
 	if(nb_perm / MAX_THREAD_PER_BLOCK > limit_blocks_1d) {
 		tasks_per_thread = ceil((nb_perm / MAX_THREAD_PER_BLOCK) / limit_blocks_1d);
-	}
-
-	// Set number of tasks/thread and # blocks
-	ll nb_blocks, nb_threads;
-	if(nb_perm > limit_blocks_1d) {
 		nb_blocks = limit_blocks_1d;
 		nb_threads = MAX_THREAD_PER_BLOCK;
 	} else {
@@ -299,11 +297,16 @@ int run_tsp() {
 	// Mim cost from blocks
 	int * h_mcost = (int *) malloc(nb_blocks*sizeof(int));
 	int * d_mcost;
+
 	cudaMalloc(&d_mcost, nb_blocks*sizeof(int));
+	err = cudaGetLastError();
+	if (err != cudaSuccess) {
+		printf("CUDA Error: %s\n",cudaGetErrorString(err));
+	}
 
 	// Call gpu
 	clock_t start = clock();
-	perm_cuda<<<nb_blocks, nb_threads>>>(nb_cities, nb_perm, d_dist, d_fact, d_mcost, tasks_per_thread, limit_blocks_1d);
+	perm_cuda<<<nb_blocks, nb_threads>>>(nb_cities, nb_perm, d_dist, d_fact, tasks_per_thread, limit_blocks_1d, d_mcost);
 	cudaDeviceSynchronize();
 	clock_t end = clock();
 
@@ -315,7 +318,7 @@ int run_tsp() {
 	cudaMemcpy(h_mcost, d_mcost, nb_blocks*sizeof(int), cudaMemcpyDeviceToHost);
 
 	// Error check
-	cudaError_t err = cudaGetLastError();
+	err = cudaGetLastError();
 	if (err != cudaSuccess) {
 		printf("CUDA Error: %s\n",cudaGetErrorString(err));
 	}
