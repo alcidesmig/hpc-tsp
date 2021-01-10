@@ -8,7 +8,8 @@
 #define ll long long
 #define MAX_THREAD_PER_BLOCK 1024
 #define MAX_NB_CITIES 50
-#define DEBUG
+// #define DEBUG
+
 
 __device__ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact, int tasks_per_thread, ll limit_blocks_1d) {
 	if(idx >= nb_perm) return INT_MAX;

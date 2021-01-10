@@ -13,7 +13,7 @@
 #include <pthread.h>
 
 #define ll long long
-#define THREAD_NUM 8
+#define THREAD_NUM 16
 #define MAX_NB_CITIES 50
 
 int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
