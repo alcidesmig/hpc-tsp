@@ -203,6 +203,7 @@ int run_tsp() {
 
 		int ** iargs = (int **)vargs[i];
 		int cost = *iargs[0];
+		printf("Cost %d\n", cost);
 		if (cost < min_mcost) {
 			min_mcost = cost;
 		}
