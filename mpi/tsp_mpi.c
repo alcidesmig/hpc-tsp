@@ -7,6 +7,8 @@
 #include <math.h>
 #include <pthread.h>
 
+#define ll long long
+
 #define THREAD_NUM 4
 #define MAX_NB_CITIES 50
 
@@ -54,29 +56,29 @@ int calc_perm_cost(long long idx, int n, long long nb_perm, int * dist, long lon
 
 void * calc_perm_cost_iter(void * args) {
 	int  ** iargs = (int **)args;
-	long long   ** largs = (long long **)args;
+	ll   ** largs = (ll **)args;
 	void ** vargs = (void **)args;
 
 	// long long idx, int n, long long nb_perm, int * dist, long long * fact
-	int i         =  *iargs[0];
-	int nb_cities =  *iargs[1];
-	long long  nb_perm   =  *largs[2];
-	int * dist    =  (int *)(vargs[3]);
-	long long  * fact    =  (long long *)(vargs[4]);
-	long long * offset	  =  (long long *)(vargs[5]);
+	int i         = *iargs[0];
+	int nb_cities = *iargs[1];
+	ll  nb_perm   = *largs[2];
+	int * dist    = (int *)(vargs[3]);
+	ll  * fact    =  (ll *)(vargs[4]);
+	ll  * offset  =  (long long *)(vargs[5]);
 
-	int perm_per_thread = (nb_perm + THREAD_NUM - 1) / THREAD_NUM;
+	ll perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
 
-	int start =     i * perm_per_thread + (int) * offset;
-	int end   = start + perm_per_thread + (int) * offset;
+	ll start =     i * perm_per_thread * offset;
+	ll end   = start + perm_per_thread * offset;
 
 	int min_mcost = INT_MAX;
 	int cost;
 
-	for (int j = start; j < end; j++) {
+	for (ll j = start; j < end; j++) {
 		if (j < nb_perm) {
-
 			cost = calc_perm_cost(j, nb_cities, nb_perm, dist, fact);
+
 			if (cost < min_mcost) {
 				min_mcost = cost;
 			}
