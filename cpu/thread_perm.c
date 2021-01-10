@@ -13,10 +13,10 @@
 #include <pthread.h>
 
 #define ll long long
-#define THREAD_NUM 16
+#define THREAD_NUM 8
 #define MAX_NB_CITIES 50
 
-long calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
+int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
 	// Test for valid idx
 	if (idx < nb_perm) {
 		// Resulting perm vector
@@ -40,14 +40,13 @@ long calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
 		// Loop path
 		perm[n] = perm[0];
 
-		// Perm cost, long to not overflow
-		long long cost = 0;
+		// Perm cost
+		int cost = 0;
 
 		// Calc perm cost
 		for (int i = 0; i < n; i++) {
 			cost += dist[perm[i] * n + perm[i + 1]];
 		}
-
 
 		return cost;
 	} else {
@@ -67,17 +66,16 @@ void * calc_perm_cost_iter(void * args) {
 	int * dist    = (int *)(vargs[3]);
 	ll  * fact    =  (ll *)(vargs[4]);
 
+	printf("From %d %d %lld %p %p\n", i, nb_cities, nb_perm, dist, fact);
+	ll perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
 
-	// printf("From %d %d %lld %p %p\n", i, nb_cities, nb_perm, dist, fact);
-	int perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
-
-	int start =     i * perm_per_thread;
-	int end   = start + perm_per_thread;
+	ll start =     i * perm_per_thread;
+	ll end   = start + perm_per_thread;
 
 	int min_mcost = INT_MAX;
-	long long cost;
+	int cost;
 
-	for (int j = start; j < end; j++) {
+	for (ll j = start; j < end; j++) {
 		if (j < nb_perm) {
 			cost = calc_perm_cost(j, nb_cities, nb_perm, dist, fact);
 
@@ -205,6 +203,7 @@ int run_tsp() {
 
 		int ** iargs = (int **)vargs[i];
 		int cost = *iargs[0];
+		printf("%d\n", cost);
 		if (cost < min_mcost) {
 			min_mcost = cost;
 		}
