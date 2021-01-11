@@ -28,7 +28,7 @@ int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
 			idx = idx % fact[n - 1 - k];
 		}
 
-		// readjust values to obtain the permutation
+		// readjust values to obtain the permutation: https://stackoverflow.com/a/7919887
 		for (int k = n - 1; k > 0; --k) {
 			for (int j = k - 1; j >= 0; --j) {
 				if (perm[j] <= perm[k]) {
