@@ -7,7 +7,6 @@
 #include <math.h>
 #include <pthread.h>
 
-#define ll long long
 #define THREAD_NUM 4
 #define MAX_NB_CITIES 50
 
@@ -55,26 +54,26 @@ int calc_perm_cost(long long idx, int n, long long nb_perm, int * dist, long lon
 
 void * calc_perm_cost_iter(void * args) {
 	int  ** iargs = (int **)args;
-	ll   ** largs = (ll **)args;
+	long long   ** largs = (long long **)args;
 	void ** vargs = (void **)args;
 
 	// long long idx, int n, long long nb_perm, int * dist, long long * fact
 	int i         = *iargs[0];
 	int nb_cities = *iargs[1];
-	ll  nb_perm   = *largs[2];
+	long long  nb_perm   = *largs[2];
 	int * dist    = (int *)(vargs[3]);
-	ll  * fact    =  (ll *)(vargs[4]);
-	ll  * offset  =  (long long *)(vargs[5]);
+	long long  * fact    =  (long long *)(vargs[4]);
+	long long  * offset  =  (long long *)(vargs[5]);
 
-	ll perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
+	long long perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
 
-	ll start =     i * perm_per_thread + *offset;
-	ll end   = start + perm_per_thread + *offset;
+	long long start =     i * perm_per_thread + *offset;
+	long long end   = start + perm_per_thread + *offset;
 
 	int min_mcost = INT_MAX;
 	int cost;
 
-	for (ll j = start; j < end; j++) {
+	for (long long j = start; j < end; j++) {
 		if (j < nb_perm) {
 			cost = calc_perm_cost(j, nb_cities, nb_perm, dist, fact);
 
@@ -97,18 +96,20 @@ int main(int argc, char** argv) {
 
 	int myrank, w_size, flag;
 
+	// Get MPI world info
 	MPI_Comm_rank( MPI_COMM_WORLD, &myrank );
 	MPI_Comm_size( MPI_COMM_WORLD, &w_size );
 
+	// Requests for check errors
 	MPI_Status status;
-	MPI_Request * request_a = (MPI_Request *) malloc(sizeof(MPI_Request) * (w_size - 1));
-	MPI_Request * request_b = (MPI_Request *) malloc(sizeof(MPI_Request) * (w_size - 1));
-	MPI_Request * request_c = (MPI_Request *) malloc(sizeof(MPI_Request) * (w_size - 1));
+	MPI_Request * request_send_data = (MPI_Request *) malloc(sizeof(MPI_Request) * (w_size - 1));
+	MPI_Request * request_send_dists = (MPI_Request *) malloc(sizeof(MPI_Request) * (w_size - 1));
 
+	// Divide tasks
 	if (myrank == 0) {
 
-		int nb_cities, cont, min_dist = INT_MAX;
-		scanf("%d", &nb_cities);
+		int nb_cities, cont, min_dist, _ = INT_MAX;
+		scanf("%d", &_);
 		scanf("%d", &nb_cities);
 
 		long long nb_perm = factorial(nb_cities);
@@ -132,7 +133,7 @@ int main(int argc, char** argv) {
 			scanf("%d %d", &x[i], &y[i]);
 		}
 
-		// Dist matrix on host
+		// Dist matrix
 		int * dist = (int *)malloc(nb_cities * nb_cities * sizeof(int));
 		if (!dist) {
 			printf("malloc error\n");
@@ -149,30 +150,32 @@ int main(int argc, char** argv) {
 			}
 		}
 
-
-
 		long long offset = 0;
 		long long n_perms_per_node = nb_perm / (w_size - 1);
+		// Send data {nb_cities, nb_perm, n_perms_per_node, offset} 
+		// and permutations numbers for each device
 		for (int i = 1; i < w_size; i++) {
 			long long data[4] = {nb_cities, nb_perm, n_perms_per_node, offset};
-			MPI_Isend(data, 4, MPI_LONG, i, i, MPI_COMM_WORLD, &request_a[i - 1]);
-			MPI_Isend(dist, nb_cities * nb_cities, MPI_INT, i, i * 1024, MPI_COMM_WORLD, &request_b[i - 1]);
+			MPI_Isend(data, 4, MPI_LONG, i, i, MPI_COMM_WORLD, &request_send_data[i - 1]);
+			MPI_Isend(dist, nb_cities * nb_cities, MPI_INT, i, i * 1024, MPI_COMM_WORLD, &request_send_dists[i - 1]);
 			offset += n_perms_per_node;
 		}
 
+		// Check for errors
 		for (int i = 1; i < w_size; i++) {
-			MPI_Wait(&request_a[i - 1], &status);
-			MPI_Test(&request_a[i - 1], &flag, &status);
+			MPI_Wait(&request_send_data[i - 1], &status);
+			MPI_Test(&request_send_data[i - 1], &flag, &status);
 			if (!flag) {
 				printf("Error on sending data {nb_cities, nb_perm} to %d", i);
 			}
-			MPI_Wait(&request_b[i - 1], &status);
-			MPI_Test(&request_b[i - 1], &flag, &status);
+			MPI_Wait(&request_send_dists[i - 1], &status);
+			MPI_Test(&request_send_dists[i - 1], &flag, &status);
 			if (!flag) {
 				printf("Error on sending dist to %d", i);
 			}
 		}
 
+		// Receive results
 		int result, number_amount;
 		for (int i = 1; i < w_size; i++) {
 			MPI_Recv(&result, 1, MPI_INT, i, i * 1024 * 1024, MPI_COMM_WORLD, &status);
@@ -190,6 +193,7 @@ int main(int argc, char** argv) {
 		int number_amount;
 		long long data[4];
 
+		// Receive data
 		MPI_Recv(data, 4, MPI_LONG, 0, myrank, MPI_COMM_WORLD, &status);
 		MPI_Get_count(&status, MPI_LONG, &number_amount);
 		if (number_amount != 4) {
@@ -202,6 +206,7 @@ int main(int argc, char** argv) {
 		long long n_perms_per_node = data[2];
 		int * dist = (int *) malloc(sizeof(int) * nb_cities * nb_cities);
 
+		// Receive dist matrix
 		MPI_Recv(dist, nb_cities * nb_cities, MPI_INT, 0, myrank * 1024, MPI_COMM_WORLD, &status);
 		MPI_Get_count(&status, MPI_INT, &number_amount);
 		if (number_amount != nb_cities * nb_cities) {
@@ -233,10 +238,10 @@ int main(int argc, char** argv) {
 			exit(1);
 		}
 
-		// Calong long threads
+		// Call THREAD_NUM threads splitting permutations
 		for (int i = 0; i < THREAD_NUM; i++) {
 
-			// Along longoc args
+			// Alloc args
 			void **args = (void **)malloc(sizeof(void *) * 6);
 			if (!args) {
 				exit(0);
@@ -261,7 +266,7 @@ int main(int argc, char** argv) {
 			pthread_create(&threads[i], NULL, calc_perm_cost_iter, args);
 		}
 
-		// Join thread
+		// Join threads
 		for (int i = 0; i < THREAD_NUM; i++) {
 			pthread_join(threads[i], NULL);
 
@@ -276,8 +281,10 @@ int main(int argc, char** argv) {
 			// printf("Thread %d terminou\n", i);
 		}
 
+		// Send results
 		MPI_Send(&min_mcost, 1, MPI_INT, 0, myrank * 1024 * 1024, MPI_COMM_WORLD);
 	}
+	
 	MPI_Finalize();
 
 }
