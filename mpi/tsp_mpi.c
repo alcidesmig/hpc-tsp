@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
 			}
 			vargs[i] = args;
 
-			// Along longoc first arg
+			// Alloc first arg
 			args[0] = (void *)malloc(sizeof(int));
 			if (!args[0]) {
 				exit(0);
@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
 		// Send results
 		MPI_Send(&min_mcost, 1, MPI_INT, 0, myrank * 1024 * 1024, MPI_COMM_WORLD);
 	}
-	
+
 	MPI_Finalize();
 
 }
