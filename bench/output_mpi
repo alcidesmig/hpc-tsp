@@ -1,82 +1,86 @@
 ../cases/case10_2.in
 Result: 2781
 
-real	0m0.187s
-user	0m0.419s
-sys	0m0.069s
+real	0m0.229s
+user	0m0.479s
+sys	0m0.046s
 ../cases/case10.in
 Result: 2936
 
-real	0m0.154s
-user	0m0.382s
-sys	0m0.079s
+real	0m0.176s
+user	0m0.457s
+sys	0m0.031s
 ../cases/case11.in
 Result: 3453
 
-real	0m0.540s
-user	0m3.152s
-sys	0m0.095s
+real	0m0.789s
+user	0m3.967s
+sys	0m0.045s
 ../cases/case12.in
 Result: 2619
 
-real	0m5.656s
-user	0m39.282s
-sys	0m0.265s
+real	0m8.851s
+user	0m49.727s
+sys	0m0.057s
 ../cases/case13.in
-Result: -2143450499
+Result: 3195
 
-real	12m56.547s
-user	93m5.914s
-sys	0m30.787s
+real	2m6.069s
+user	11m45.957s
+sys	0m0.420s
 ../cases/case14.in
----
-../cases/case15.in
----
-../cases/case3.in
-Result: 2147483647
 
-real	0m0.079s
-user	0m0.103s
-sys	0m0.066s
+
+Result: 3483
+
+real	32m30.517s
+user	180m11.016s
+sys	0m4.698s
+../cases/case3.in
+Result: 2186
+
+real	0m0.075s
+user	0m0.075s
+sys	0m0.045s
 ../cases/case4.in
 Result: 2060
 
-real	0m0.101s
-user	0m0.100s
-sys	0m0.072s
+real	0m0.088s
+user	0m0.062s
+sys	0m0.053s
 ../cases/case5.in
 Result: 1513
 
-real	0m0.113s
-user	0m0.101s
-sys	0m0.077s
+real	0m0.062s
+user	0m0.077s
+sys	0m0.053s
 ../cases/case6.in
 Result: 2289
 
-real	0m0.103s
-user	0m0.113s
-sys	0m0.060s
+real	0m0.105s
+user	0m0.082s
+sys	0m0.051s
 ../cases/case7.in
 Result: 2384
 
-real	0m0.059s
-user	0m0.091s
-sys	0m0.079s
+real	0m0.107s
+user	0m0.068s
+sys	0m0.074s
 ../cases/case8.in
 Result: 2474
 
-real	0m0.047s
-user	0m0.104s
-sys	0m0.057s
+real	0m0.107s
+user	0m0.078s
+sys	0m0.068s
 ../cases/case9.in
 Result: 2487
 
-real	0m0.104s
-user	0m0.124s
-sys	0m0.064s
+real	0m0.113s
+user	0m0.116s
+sys	0m0.062s
 ../cases/case.in
 Result: 420
 
 real	0m0.106s
-user	0m0.124s
-sys	0m0.049s
+user	0m0.079s
+sys	0m0.053s

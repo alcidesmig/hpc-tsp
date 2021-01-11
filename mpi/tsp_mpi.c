@@ -8,7 +8,6 @@
 #include <pthread.h>
 
 #define ll long long
-
 #define THREAD_NUM 4
 #define MAX_NB_CITIES 50
 
@@ -69,8 +68,8 @@ void * calc_perm_cost_iter(void * args) {
 
 	ll perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
 
-	ll start =     i * perm_per_thread * offset;
-	ll end   = start + perm_per_thread * offset;
+	ll start =     i * perm_per_thread + *offset;
+	ll end   = start + perm_per_thread + *offset;
 
 	int min_mcost = INT_MAX;
 	int cost;

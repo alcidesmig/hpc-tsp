@@ -13,7 +13,7 @@
 #include <pthread.h>
 
 #define ll long long
-#define THREAD_NUM 8
+#define THREAD_NUM 16
 #define MAX_NB_CITIES 50
 
 int calc_perm_cost(ll idx, int n, ll nb_perm, int * dist, ll * fact) {
@@ -66,7 +66,6 @@ void * calc_perm_cost_iter(void * args) {
 	int * dist    = (int *)(vargs[3]);
 	ll  * fact    =  (ll *)(vargs[4]);
 
-	printf("From %d %d %lld %p %p\n", i, nb_cities, nb_perm, dist, fact);
 	ll perm_per_thread = (nb_perm + THREAD_NUM - 1)/THREAD_NUM;
 
 	ll start =     i * perm_per_thread;
@@ -203,7 +202,6 @@ int run_tsp() {
 
 		int ** iargs = (int **)vargs[i];
 		int cost = *iargs[0];
-		printf("%d\n", cost);
 		if (cost < min_mcost) {
 			min_mcost = cost;
 		}
